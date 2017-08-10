@@ -4,12 +4,29 @@ var chalk = require('chalk'),
     inquirer = require('inquirer'),
     chance = 0,
     current_balance = 0,
-    mode = 'pre',
+    mode = 'sim',
     defaults = {
-        balance: 0.00001098,
-        starting_bet: 0.00000001,
-        payout: 2,
-        condition: '<'
+        balance: 0.001,
+        starting_bet: 0.00000010,
+        payout: 12,
+        condition: '<',
+        autobet: false,
+        inscrease_on_loss: 15.55
+    },
+    stats = {
+        wins: 0,
+        loss: 0,
+        streak_loss: 0,
+        streak_wins: 0,
+        max_streak_loss: 0,
+        max_streak_wins: 0,
+        max_bet: 0,
+        total_bet: 0,
+        count_bets: 0,
+        biggest_win: 0,
+        biggest_lose: 0,
+        balance_high: 0,
+        balance_low: 0
     },
     lastbet = {},
     Random = require('rng'),
@@ -38,6 +55,11 @@ promptUser(function() {
 
     chance = 99 / defaults.payout;
     current_balance = defaults.balance;
+    current_balance = parseFloat(current_balance);
+    defaults.starting_bet = parseFloat(defaults.starting_bet);
+    stats.balance_high = current_balance;
+    stats.balance_low = current_balance;
+
     clear();
     bet(defaults.starting_bet);
 })
@@ -51,7 +73,7 @@ function bet(amount) {
         },
 
         rollDiceCallback = function(result) {
-            clear();
+            //clear();
 
             last_bet = result;
             current_balance += result.amount;
@@ -60,12 +82,24 @@ function bet(amount) {
             if (result.win) {
                 nextBet = defaults.starting_bet;
             } else {
-                nextBet = Math.abs(result.amount * defaults.payout);
+                //  console.log('div', stats.streak_loss % defaults.payout);
+                // if (stats.streak_loss > defaults.payout)
+                //     //   throw stats.streak_loss / defaults.payout;
+                //     nextBet = defaults.starting_bet * (stats.streak_loss / defaults.payout);
+                // //   //  nextBet = Math.abs(result.amount * defaults.payout);
+                // else
+                    nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
             }
+
+            if (current_balance > stats.balance_high)
+                stats.balance_high = current_balance;
+
+            if (current_balance < stats.balance_low)
+                stats.balance_low = current_balance;
+
 
             writeReport();
             bet(nextBet);
-
         },
 
         questionCallback = function() {
@@ -77,16 +111,23 @@ function bet(amount) {
             name: 'betsize',
             type: 'input',
             message: 'Please enter your bet',
-            default: amount,
+            default: amount.toFixed(8),
             validate: validNumber
         };
 
 
-
-    inquirer.prompt(question).then(questionCallback);
+    if (!defaults.autobet)
+        inquirer.prompt(question).then(questionCallback);
+    else setTimeout(function () { questionCallback({
+        betsize: amount
+    }) }, 500);
 }
 
 function writeReport() {
+
+    // if (stats.count_bets > 1 && defaults.autobet === true && stats.count_bets % 100 !== 0)
+    //     return;
+
     clear();
 
     var maxLen = 0;
@@ -104,28 +145,29 @@ function writeReport() {
 
 
     if (last_bet.win === true) {
-        console.log(
-            chalk.green(
-                figlet.textSync("WON!", {
-                    horizontalLayout: 'full'
-                })
-            ));
+        console.log(chalk.green("WIN!"));
     } else {
-        console.log(
-            chalk.red(
-                figlet.textSync("LOST!", {
-                    horizontalLayout: 'full'
-                })
-            ));
+        console.log(chalk.red("LOST!"));
     }
 
     console.log("");
     console.log("");
 
     for (prop in last_bet) {
-
         console.log(chalk.grey(prop), chalk.cyan(last_bet[prop]));
     }
+
+    console.log("");
+    console.log("");
+
+    for (prop in stats) {
+        val = stats[prop];
+        if (val.toString().indexOf('e-') > 0)
+            console.log(chalk.grey(prop), chalk.cyan(stats[prop].toFixed(8)));
+        else
+            console.log(chalk.grey(prop), chalk.cyan(stats[prop]));
+    }
+
 
     console.log("");
     console.log("");
@@ -145,11 +187,46 @@ function rollDice(bet, callback) {
         amount = -bet;
 
     var done = function() {
+
+        stats.count_bets++;
+        stats.total_bet += Math.abs(amount);
+
+        if (Math.abs(amount) > stats.max_bet)
+            stats.max_bet = Math.abs(amount);
+
+
+
+        if (win) {
+            if (amount > stats.biggest_win)
+                stats.biggest_win = amount;
+
+            stats.streak_loss = 0;
+
+            stats.wins++;
+            stats.streak_wins++;
+
+            if (stats.max_streak_wins < stats.streak_wins)
+                stats.max_streak_wins = stats.streak_wins;
+        } else {
+
+            if (Math.abs(amount) > stats.biggest_lose)
+                stats.biggest_lose = Math.abs(amount);
+
+            stats.streak_wins = 0;
+
+            stats.loss++;
+            stats.streak_loss++;
+
+            if (stats.max_streak_loss < stats.streak_loss)
+                stats.max_streak_loss = stats.streak_loss;
+        }
+
         callback({
             roll_number: roll_number,
             jackpot: roll_number === 77.77,
             win: win,
-            amount: amount
+            amount: amount,
+            condition: defaults.condition + ' ' + chance
         });
     }
 
@@ -158,7 +235,7 @@ function rollDice(bet, callback) {
 
         if ((defaults.condition === '<' && roll_number < chance) ||
             (defaults.condition === '>' && roll_number > chance)) {
-            amount = bet * defaults.payout;
+            amount = bet * defaults.payout - bet;
             win = true;
         }
 
@@ -174,11 +251,17 @@ function rollDice(bet, callback) {
         req.then(function(response) {
             var data = JSON.parse(response);
 
-          //  throw error ('data.error is undefined');
+            if (!data)
+                throw ('data not defined!')
+
+            if (!data.return)
+                throw ('return not defined!')
+            //  throw error ('data.error is undefined');
 
             data = data.return;
+            roll_number = data.roll_number;
 
-            
+
 
             if ((defaults.condition === '<' && roll_number < chance) ||
                 (defaults.condition === '>' && roll_number > chance)) {
@@ -233,6 +316,13 @@ function promptUser(callback) {
             type: 'input',
             message: 'Please enter desired payout',
             default: defaults.payout,
+            validate: validNumber
+        },
+        {
+            name: 'inscrease_on_loss',
+            type: 'input',
+            message: 'Increase on loss?',
+            default: defaults.inscrease_on_loss,
             validate: validNumber
         },
         {
