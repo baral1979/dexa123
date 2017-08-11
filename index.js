@@ -11,9 +11,10 @@ var chalk = require('chalk'),
         starting_bet: 0.00000001,
         payout: 12,
         condition: '<',
-        autobet: false,
+        autobet: true,
         inscrease_on_loss: 15.55,
-        access_token: 'd08986e553d7ad5405c4056172639044d89cb86282a177777e33b9c984e0c948798fd7d64573c83838f32163e031f64d69ed1ed57653656dbe1d35fbc13024b7'
+        access_token: 'd08986e553d7ad5405c4056172639044d89cb86282a177777e33b9c984e0c948798fd7d64573c83838f32163e031f64d69ed1ed57653656dbe1d35fbc13024b7',
+        stop_auto_after_losses: 50
     },
     delay = {
         min: 2500,
@@ -24,6 +25,8 @@ stats = {
         loss: 0,
         streak_loss: 0,
         streak_wins: 0,
+        avg_loss_streak_before_win: 0,
+        last_loss_streak: 0,
         max_streak_loss: 0,
         max_streak_wins: 0,
         max_bet: 0,
@@ -32,8 +35,10 @@ stats = {
         biggest_win: 0,
         biggest_lose: 0,
         balance_high: 0,
-        balance_low: 0
+        balance_low: 0,
+        last_win: 0
     },
+    loss_streaks = [],
     lastbet = {},
     Random = require('rng'),
     mt = new Random.MT(),
@@ -76,16 +81,16 @@ const readline = require('readline');
 readline.emitKeypressEvents(process.stdin);
 process.stdin.setRawMode(true);
 process.stdin.on('keypress', (str, key) => {
-  if (key.name === 'escape') {
-    //process.exit();
-    exitWhenRolled = true;
-  }
-  // else {
-  //   console.log(`You pressed the "${str}" key`);
-  //   console.log();
-  //   console.log(key);
-  //   console.log();
-  // }
+    if (key.name === 'escape') {
+        //process.exit();
+        exitWhenRolled = true;
+    }
+    // else {
+    //   console.log(`You pressed the "${str}" key`);
+    //   console.log();
+    //   console.log(key);
+    //   console.log();
+    // }
 });
 
 inquirer.prompt(modeQuestion).then(function(answer) {
@@ -144,6 +149,9 @@ function bet(amount) {
             var nextBet = 0;
             if (result.win) {
                 nextBet = defaults.starting_bet;
+
+
+
             } else {
                 //  console.log('div', stats.streak_loss % defaults.payout);
                 // if (stats.streak_loss > defaults.payout)
@@ -152,7 +160,38 @@ function bet(amount) {
                 // //   //  nextBet = Math.abs(result.amount * defaults.payout);
                 // else
                 //nextBet = Math.abs(result.amount) * 2;
-                nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
+
+                switch (stats.streak_loss) {
+                    case 1:
+                    case 2:
+                        nextBet = 0.00000001;
+                        break;
+                    case 3:
+                    case 4:
+                    case 5:
+                    case 6:
+                        nextBet = 0.00000002;
+                        break;
+                    case 7:
+                    case 8:
+                        nextBet = 0.00000003;
+                        break;
+                    case 9:
+                    case 10:
+                        nextBet = 0.00000004;
+                        break;
+                    case 18:
+                        nextBet = 0.00000013
+                        break;
+                    case 19:
+                        nextBet = 0.00000016
+                        break;
+                    default:
+                        nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
+                }
+
+                //nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
+
             }
 
             if (current_balance > stats.balance_high)
@@ -165,13 +204,16 @@ function bet(amount) {
             writeReport();
 
             if (exitWhenRolled === true) {
-              console.log("Done!");
-              console.log("Profit", defaults.balance - current_balance);
+                console.log("Done!");
+                console.log("Profit", defaults.balance - current_balance);
             } else bet(nextBet);
         },
 
-        questionCallback = function() {
-            rollDice(arguments[0].betsize, rollDiceCallback);
+        questionCallback = function(params) {
+            if (params.betsize > 0.9)
+                params.betsize = parseFloat(params.betsize) / 100000000;
+
+            rollDice(params.betsize, rollDiceCallback);
         },
 
         question = {
@@ -179,11 +221,17 @@ function bet(amount) {
             type: 'input',
             message: 'Please enter your bet',
             default: amount.toFixed(8),
-            validate: validNumber
+            validate: function(value) {
+                if (Number(parseFloat(value)) == value) {
+                    value = 0.00000001;
+                    return true;
+                } else
+                    return 'Please enter a valid number!'
+            }
         };
 
 
-    if (!defaults.autobet)
+    if (!defaults.autobet || (defaults.autobet === true && stats.streak_loss >= defaults.stop_auto_after_losses))
         inquirer.prompt(question).then(questionCallback);
     else setTimeout(function() {
         questionCallback({
@@ -218,13 +266,11 @@ function writeReport() {
     }
 
     console.log("");
-    console.log("");
 
     for (prop in last_bet) {
         console.log(chalk.grey(prop), chalk.cyan(last_bet[prop]));
     }
 
-    console.log("");
     console.log("");
 
     for (prop in stats) {
@@ -234,9 +280,8 @@ function writeReport() {
         else
             console.log(chalk.grey(prop), chalk.cyan(stats[prop]));
     }
+    console.log(chalk.grey("Win pct"), chalk.cyan(Math.round(stats.wins / stats.loss * 100) + '%'), chalk.grey("[ avg is "+ chance +"% (1/" + Math.round(100/chance) + ")]"));
 
-
-    console.log("");
     console.log("");
 
     var pos = chalk.green,
@@ -262,9 +307,23 @@ function rollDice(bet, callback) {
             stats.max_bet = Math.abs(amount);
 
         if (win) {
+
+
+            loss_streaks.push(parseInt(stats.streak_loss));
+            stats.last_loss_streak = stats.streak_loss;
+
+
+            var sum = 0;
+            for (var i = 0; i < loss_streaks.length; i++) {
+                sum += loss_streaks[i];
+            }
+
+            stats.avg_loss_streak_before_win = sum / loss_streaks.length;
+
             if (amount > stats.biggest_win)
                 stats.biggest_win = amount;
 
+            stats.last_win = amount;
             stats.streak_loss = 0;
 
             stats.wins++;
@@ -337,7 +396,7 @@ function rollDice(bet, callback) {
                 defaults.balance = current_balance - data.amount_return;
 
             win = data.amount_return > 0;
-            amout = data.amount_return;
+            amount = data.amount_return;
 
             done();
 
@@ -404,6 +463,13 @@ function promptUser(callback) {
             type: 'input',
             message: 'Increase on loss?',
             default: defaults.inscrease_on_loss,
+            validate: validNumber
+        },
+        {
+            name: 'stop_auto_after_losses',
+            type: 'input',
+            message: 'Stop auto mode after how many losses?',
+            default: defaults.stop_auto_after_losses,
             validate: validNumber
         },
 
