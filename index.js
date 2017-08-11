@@ -4,16 +4,22 @@ var chalk = require('chalk'),
     inquirer = require('inquirer'),
     chance = 0,
     current_balance = 0,
-    mode = 'sim',
+    mode = 'pre',
+    exitWhenRolled = false,
     defaults = {
         balance: 0.001,
-        starting_bet: 0.00000010,
+        starting_bet: 0.00000001,
         payout: 12,
         condition: '<',
         autobet: false,
-        inscrease_on_loss: 15.55
+        inscrease_on_loss: 15.55,
+        access_token: 'd08986e553d7ad5405c4056172639044d89cb86282a177777e33b9c984e0c948798fd7d64573c83838f32163e031f64d69ed1ed57653656dbe1d35fbc13024b7'
     },
-    stats = {
+    delay = {
+        min: 2500,
+        max: 4500
+    }
+stats = {
         wins: 0,
         loss: 0,
         streak_loss: 0,
@@ -31,7 +37,22 @@ var chalk = require('chalk'),
     lastbet = {},
     Random = require('rng'),
     mt = new Random.MT(),
-    rp = require('request-promise');
+    rp = require('request-promise'),
+    pre_url = 'http://localhost:7799/api/bet',
+    bitsler = {
+        url: 'https://www.bitsler.com/api/bet',
+        //url: 'http://localhost:7799/api/bet',
+        params: {
+            access_token: '',
+            username: 'Baral1979',
+            type: 'dice',
+            amount: 0.00000001,
+            condition: '<',
+            game: 49.5,
+            devise: 'btc'
+        }
+    };
+
 
 clear();
 
@@ -43,26 +64,67 @@ console.log(
     )
 );
 
+var modeQuestion = {
+    type: 'list',
+    name: 'mode',
+    message: 'Select mode:',
+    choices: ['sim', 'pre', 'prod'],
+    default: 'sim'
+};
 
-promptUser(function() {
-    var values = arguments[0];
+const readline = require('readline');
+readline.emitKeypressEvents(process.stdin);
+process.stdin.setRawMode(true);
+process.stdin.on('keypress', (str, key) => {
+  if (key.name === 'escape') {
+    //process.exit();
+    exitWhenRolled = true;
+  }
+  // else {
+  //   console.log(`You pressed the "${str}" key`);
+  //   console.log();
+  //   console.log(key);
+  //   console.log();
+  // }
+});
 
-    // set all defaults values from arguments
-    for (prop in values) {
-        if (defaults[prop])
-            defaults[prop] = values[prop];
-    }
+inquirer.prompt(modeQuestion).then(function(answer) {
+    mode = answer.mode;
+    init();
+});
 
-    chance = 99 / defaults.payout;
-    current_balance = defaults.balance;
-    current_balance = parseFloat(current_balance);
-    defaults.starting_bet = parseFloat(defaults.starting_bet);
-    stats.balance_high = current_balance;
-    stats.balance_low = current_balance;
+function init() {
+    promptUser(function() {
+        var values = arguments[0];
 
-    clear();
-    bet(defaults.starting_bet);
-})
+        // set all defaults values from arguments
+        for (prop in values) {
+            if (defaults[prop])
+                defaults[prop] = values[prop];
+        }
+
+        chance = 99 / defaults.payout;
+        current_balance = defaults.balance;
+        current_balance = parseFloat(current_balance);
+
+        defaults.starting_bet = parseFloat(defaults.starting_bet);
+        stats.balance_high = current_balance;
+        stats.balance_low = current_balance;
+
+        if (mode !== 'sim') {
+            bitsler.params.access_token = defaults.access_token;
+            bitsler.params.amount = defaults.starting_bet;
+            bitsler.params.condition = defaults.condition;
+            bitsler.params.game = chance
+            console.log('TOKEN', defaults.access_token);
+            defaults.balance = 0;
+        }
+
+
+        clear();
+        bet(defaults.starting_bet);
+    })
+};
 
 function bet(amount) {
     var validNumber = function(value) {
@@ -76,7 +138,8 @@ function bet(amount) {
             //clear();
 
             last_bet = result;
-            current_balance += result.amount;
+            if (mode === 'sim')
+                current_balance += result.amount;
 
             var nextBet = 0;
             if (result.win) {
@@ -88,7 +151,8 @@ function bet(amount) {
                 //     nextBet = defaults.starting_bet * (stats.streak_loss / defaults.payout);
                 // //   //  nextBet = Math.abs(result.amount * defaults.payout);
                 // else
-                    nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
+                //nextBet = Math.abs(result.amount) * 2;
+                nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
             }
 
             if (current_balance > stats.balance_high)
@@ -99,11 +163,14 @@ function bet(amount) {
 
 
             writeReport();
-            bet(nextBet);
+
+            if (exitWhenRolled === true) {
+              console.log("Done!");
+              console.log("Profit", defaults.balance - current_balance);
+            } else bet(nextBet);
         },
 
         questionCallback = function() {
-
             rollDice(arguments[0].betsize, rollDiceCallback);
         },
 
@@ -118,17 +185,17 @@ function bet(amount) {
 
     if (!defaults.autobet)
         inquirer.prompt(question).then(questionCallback);
-    else setTimeout(function () { questionCallback({
-        betsize: amount
-    }) }, 500);
+    else setTimeout(function() {
+        questionCallback({
+            betsize: amount
+        })
+    }, mode === 'sim' ? 100 : Math.floor(Math.random() * (delay.max - delay.min + 1) + delay.min));
 }
 
 function writeReport() {
 
-    // if (stats.count_bets > 1 && defaults.autobet === true && stats.count_bets % 100 !== 0)
-    //     return;
-
     clear();
+    var bal = Math.round(current_balance * 100000000);
 
     var maxLen = 0;
 
@@ -182,8 +249,8 @@ function writeReport() {
 
 function rollDice(bet, callback) {
 
-    var roll_number = -1;
-    win = false,
+    var roll_number = -1,
+        win = false,
         amount = -bet;
 
     var done = function() {
@@ -193,8 +260,6 @@ function rollDice(bet, callback) {
 
         if (Math.abs(amount) > stats.max_bet)
             stats.max_bet = Math.abs(amount);
-
-
 
         if (win) {
             if (amount > stats.biggest_win)
@@ -240,48 +305,64 @@ function rollDice(bet, callback) {
         }
 
         done();
-    } else if (mode === 'pre') {
+    } else if (mode === 'pre' || mode === 'prod') {
+        var url = mode === 'prod' ? bitsler.url : pre_url;
 
-        var req = rp.post('http://localhost:7799/api/bet');
+        var req = rp.post(url);
         var form = req.form();
-        form.append('amount', amount);
-        form.append('condition', '<');
-        form.append('game', 49.5);
+
+        for (prop in bitsler.params) {
+            if (prop !== 'amount')
+                form.append(prop, bitsler.params[prop]);
+        }
+
+        form.append('amount', bet);
 
         req.then(function(response) {
             var data = JSON.parse(response);
+            console.log('response', data);
 
             if (!data)
                 throw ('data not defined!')
 
             if (!data.return)
                 throw ('return not defined!')
-            //  throw error ('data.error is undefined');
+
 
             data = data.return;
             roll_number = data.roll_number;
 
+            current_balance = parseFloat(data.new_balance);
+            if (defaults.balance === 0)
+                defaults.balance = current_balance - data.amount_return;
 
-
-            if ((defaults.condition === '<' && roll_number < chance) ||
-                (defaults.condition === '>' && roll_number > chance)) {
-                amount = bet * defaults.payout;
-                win = true;
-            }
+            win = data.amount_return > 0;
+            amout = data.amount_return;
 
             done();
 
         }).catch(function(err) {
 
-            if (err.response && err.response.body)
-                console.log(err.response.body);
-            else if (err.response)
-                console.log(err.response);
-            else console.log(err);
+            if (err.statusCode === 429) {
+                console.log("Too many requests.. retry in 5 seconds...");
+                setTimeout(function() {
+                    rollDice(bet, callback);
+                }, 5000)
+            } else {
+                console.log(err.statusCode);
+                console.log(err.status);
+                console.log(err);
+            }
+
+
+            // if (err.response && err.response.body)
+            //     console.log(err.response.body);
+            // else if (err.response)
+            //     console.log(err.response);
+            // else console.log(err);
 
         });
-    } else if (mode === 'prd') {
-        throw error('Prod mode not supported!');
+
     } else {
         throw error('mode not properly defined!');
     }
@@ -325,6 +406,7 @@ function promptUser(callback) {
             default: defaults.inscrease_on_loss,
             validate: validNumber
         },
+
         {
             name: 'condition',
             type: 'input',
@@ -340,6 +422,20 @@ function promptUser(callback) {
             }
         }
     ];
+
+    if (mode !== 'sim') {
+        questions.shift();
+
+        questions.push({
+            name: 'access_token',
+            type: 'input',
+            message: 'Access Token?',
+            default: defaults.access_token,
+            validate: function(value) {
+                return value.length > 0;
+            }
+        });
+    }
 
     inquirer.prompt(questions).then(callback);
 }
