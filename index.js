@@ -13,7 +13,7 @@ var chalk = require('chalk'),
         condition: '<',
         autobet: true,
         inscrease_on_loss: 15.55,
-        access_token: 'd08986e553d7ad5405c4056172639044d89cb86282a177777e33b9c984e0c948798fd7d64573c83838f32163e031f64d69ed1ed57653656dbe1d35fbc13024b7',
+        access_token: 'ea4bc595129461814d022a1fce1ff8c9f00a5230d7916112b91e17dca7290e5d130fdbb6e71fd365a51fa441ea5fe8600b52a4578d2a8507737b2fa8deb65285',
         stop_auto_after_losses: 50
     },
     delay = {
@@ -76,6 +76,14 @@ var modeQuestion = {
     choices: ['sim', 'pre', 'prod'],
     default: 'sim'
 };
+
+Number.prototype.toBTC = function() {
+    return (parseFloat(this.toPrecision(8))).toFixed(8);
+}
+
+getStepBet = function(initialBet, increasePct, step) {
+    return (initialBet * Math.pow((1 + increasePct) , (step - 1))).toBTC();
+}
 
 const readline = require('readline');
 readline.emitKeypressEvents(process.stdin);
@@ -161,34 +169,38 @@ function bet(amount) {
                 // else
                 //nextBet = Math.abs(result.amount) * 2;
 
-                switch (stats.streak_loss) {
-                    case 1:
-                    case 2:
-                        nextBet = 0.00000001;
-                        break;
-                    case 3:
-                    case 4:
-                    case 5:
-                    case 6:
-                        nextBet = 0.00000002;
-                        break;
-                    case 7:
-                    case 8:
-                        nextBet = 0.00000003;
-                        break;
-                    case 9:
-                    case 10:
-                        nextBet = 0.00000004;
-                        break;
-                    case 18:
-                        nextBet = 0.00000013
-                        break;
-                    case 19:
-                        nextBet = 0.00000016
-                        break;
-                    default:
-                        nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
-                }
+                // switch (stats.streak_loss) {
+                //     case 1:
+                //     case 2:
+                //         nextBet = 0.00000001;
+                //         break;
+                //     case 3:
+                //     case 4:
+                //     case 5:
+                //     case 6:
+                //         nextBet = 0.00000002;
+                //         break;
+                //     case 7:
+                //     case 8:
+                //         nextBet = 0.00000003;
+                //         break;
+                //     case 9:
+                //     case 10:
+                //         nextBet = 0.00000004;
+                //         break;
+                //     case 18:
+                //         nextBet = 0.00000013
+                //         break;
+                //     case 19:
+                //         nextBet = 0.00000016
+                //         break;
+                //     default:
+                //         nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
+
+                //}
+                //nextBet = Math.round(defaults.starting_bet * (1 + defaults.inscrease_on_loss / 100) ^ (stats.streak_loss - 1), 8);
+                 nextBet = parseFloat(getStepBet(defaults.starting_bet, defaults.inscrease_on_loss / 100, stats.streak_loss));
+                // throw nextBet;
 
                 //nextBet = Math.abs(result.amount) * (1 + defaults.inscrease_on_loss / 100);
 
@@ -280,7 +292,7 @@ function writeReport() {
         else
             console.log(chalk.grey(prop), chalk.cyan(stats[prop]));
     }
-    console.log(chalk.grey("Win pct"), chalk.cyan(Math.round(stats.wins / stats.loss * 100) + '%'), chalk.grey("[ avg is "+ chance +"% (1/" + Math.round(100/chance) + ")]"));
+    console.log(chalk.grey("Win pct"), chalk.cyan(Math.round(stats.wins / stats.loss * 100) + '%'), chalk.grey("[ avg is " + chance + "% (1/" + Math.round(100 / chance) + ")]"));
 
     console.log("");
 
