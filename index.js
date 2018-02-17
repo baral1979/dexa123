@@ -13,7 +13,7 @@ var chalk = require('chalk'),
         condition: '<',
         autobet: true,
         inscrease_on_loss: 15.55,
-        access_token: 'ea4bc595129461814d022a1fce1ff8c9f00a5230d7916112b91e17dca7290e5d130fdbb6e71fd365a51fa441ea5fe8600b52a4578d2a8507737b2fa8deb65285',
+        access_token: 'dd7fedd2d1eedb6aec80c665f8f95b18e3b20ad9d37bb58d9be97f379555d718ab7669c255eedf6a021ead37166e9a3320322b75dd26adbe96bc05e7754e319f',
         stop_auto_after_losses: 50
     },
     delay = {

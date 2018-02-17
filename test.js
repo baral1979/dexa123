@@ -1,6 +1,6 @@
-var total = 0.00000750;
-var bet = 0.00000001;
-var int = 100/100;
+var total = 0.019;
+var bet = 0.00000100;
+var int = 15.55/100;
 var games = [];
 
 Number.prototype.toBTC = function() {
@@ -21,3 +21,5 @@ getNumberOfSteps = function(balance, chance, initialBet) {
 }
 
 console.log(getNumberOfSteps(total, int, bet));
+
+process.stdout.write('\x07');

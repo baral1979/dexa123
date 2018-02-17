@@ -1,0 +1,42 @@
+
+bet 0.00025839 < 4.95
+rolled number 56.19
+lost -0.000258390000 balance:  0.00616638 profit -183362.00000000064 usd: -2.7875 bet:  1231 loss: 106 max_streak_loss: 106
+bet 0.00027847 < 4.95
+rolled number 19.79
+lost -0.000278470000 balance:  0.00588791 profit -211209.00000000067 usd: -3.2108 bet:  1232 loss: 107 max_streak_loss: 107
+bet 0.00030011 < 4.95
+rolled number 35.7
+lost -0.000300110000 balance:  0.00558780 profit -241220.00000000067 usd: -3.6671 bet:  1233 loss: 108 max_streak_loss: 108
+bet 0.00032342 < 4.95
+rolled number 74.45
+lost -0.000323420000 balance:  0.00526438 profit -273562.00000000064 usd: -4.1587 bet:  1234 loss: 109 max_streak_loss: 109
+bet 0.00034855 < 4.95
+rolled number 85.37
+lost -0.000348550000 balance:  0.00491583 profit -308417.0000000006 usd: -4.6886 bet:  1235 loss: 110 max_streak_loss: 110
+bet 0.00037564 < 4.95
+rolled number 47.43
+lost -0.000375640000 balance:  0.00454019 profit -345981.0000000006 usd: -5.2597 bet:  1236 loss: 111 max_streak_loss: 111
+bet 0.00040482 < 4.95
+rolled number 11.99
+lost -0.000404820000 balance:  0.00413537 profit -386463.0000000006 usd: -5.8751 bet:  1237 loss: 112 max_streak_loss: 112
+bet 0.00043628 < 4.95
+rolled number 39.53
+lost -0.000436280000 balance:  0.00369909 profit -430091.0000000006 usd: -6.5383 bet:  1238 loss: 113 max_streak_loss: 113
+bet 0.00047018 < 4.95
+rolled number 22.73
+lost -0.000470180000 balance:  0.00322891 profit -477109.0000000006 usd: -7.2531 bet:  1239 loss: 114 max_streak_loss: 114
+bet 0.00050671 < 4.95
+rolled number 88.48
+lost -0.000506710000 balance:  0.00272220 profit -527780.0000000006 usd: -8.0234 bet:  1240 loss: 115 max_streak_loss: 115
+bet 0.00054608 < 4.95
+rolled number 93.84
+lost -0.000546080000 balance:  0.00217612 profit -582388.0000000006 usd: -8.8536 bet:  1241 loss: 116 max_streak_loss: 116
+bet 0.00058851 < 4.95
+rolled number 25.21
+lost -0.000588510000 balance:  0.00158761 profit -641239.0000000006 usd: -9.7482 bet:  1242 loss: 117 max_streak_loss: 117
+bet 0.00063424 < 4.95
+rolled number 75.87
+lost -0.000634240000 balance:  0.00095337 profit -704663.0000000006 usd: -10.7124 bet:  1243 loss: 118 max_streak_loss: 118
+bet 34889.46646552 < 17
+ERR Maximum bet: 10.00000000
